@@ -6,6 +6,7 @@
 ;; Keywords: literate programming, reproducible research
 ;; Homepage: http://orgmode.org
 ;; Version: 0.01
+;; Package-Requires: ((restclient "0"))
 
 ;;; License:
 
