@@ -8,7 +8,7 @@
   #+BEGIN_SRC emacs-lisp
   (org-babel-do-load-languages
    'org-babel-load-languages
-   '((ob-restclient . t)))
+   '((restclient . t)))
   #+END_SRC
 
   You can then execute the query by pressing =C-c C-c= on the
