@@ -2,7 +2,7 @@
 
   An extension to restclient.el for emacs that provides org-babel support.
 
-  To get started, install =ob-restclient.el= and add =(ob-restclient
+  To get started, install =ob-restclient.el= and add =(restclient
   . t)= to =org-babel-load-languages=:
 
   #+BEGIN_SRC emacs-lisp
