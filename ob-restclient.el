@@ -5,7 +5,7 @@
 ;; Author: Alf Lervåg
 ;; Keywords: literate programming, reproducible research
 ;; Homepage: http://orgmode.org
-;; Version: 0.01
+;; Version: 0.02
 ;; Package-Requires: ((restclient "0"))
 
 ;;; License:
