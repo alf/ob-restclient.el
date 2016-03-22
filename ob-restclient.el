@@ -43,6 +43,7 @@
   `((:results . "raw"))
   "Default arguments for evaluating a restclient block.")
 
+;;;###autoload
 (defun org-babel-execute:restclient (body params)
   "Execute a block of Restclient code with org-babel.
 This function is called by `org-babel-execute-src-block'"
