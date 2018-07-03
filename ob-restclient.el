@@ -68,7 +68,7 @@ This function is called by `org-babel-execute-src-block'"
         (restclient-http-parse-current-and-do 'restclient-http-do nil t))
 
       (while restclient-within-call
-        (sit-for 0.05))
+        (sleep-for 0.05))
 
       (goto-char (point-min))
       (when (search-forward (buffer-name) nil t)
