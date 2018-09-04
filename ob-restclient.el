@@ -66,6 +66,8 @@ This function is called by `org-babel-execute-src-block'"
               (insert (format ":%s = %s\n" (car value) (cdr value))))))
         (insert body)
 	(goto-char (point-min))
+	(delete-trailing-whitespace)
+	(goto-char (point-min))
         (restclient-http-parse-current-and-do 'restclient-http-do nil t))
 
       (while restclient-within-call
