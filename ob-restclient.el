@@ -63,7 +63,10 @@ This function is called by `org-babel-execute-src-block'"
           (let ((key (car p))
                 (value (cdr p)))
             (when (eql key :var)
-              (insert (format ":%s = %s\n" (car value) (cdr value))))))
+              (insert (format ":%s = %s\n" (car value) (cdr value))))
+	    (when (eql key :jq)
+	      (message "Should run: jq" value))))
+	  
         (insert body)
 	(goto-char (point-min))
 	(delete-trailing-whitespace)
@@ -72,7 +75,7 @@ This function is called by `org-babel-execute-src-block'"
 
       (while restclient-within-call
         (sleep-for 0.05))
-
+;; If there is a jq command line specified run here the result through jq
       (goto-char (point-min))
       (when (search-forward (buffer-name) nil t)
         (error "Restclient encountered an error"))
@@ -86,6 +89,9 @@ This function is called by `org-babel-execute-src-block'"
     (goto-char (point-max))
     (insert "#+END_SRC\n")
     (buffer-string)))
+
+;; TODO add tangling capability
+
 
 (provide 'ob-restclient)
 ;;; ob-restclient.el ends here
