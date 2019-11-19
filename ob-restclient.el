@@ -93,10 +93,14 @@ This function is called by `org-babel-execute-src-block'"
   "Just return the payload."
   (let ((comments-start
          (save-excursion
-           (while (not (looking-at "//"))
-             (forward-line))
+           (goto-char (point-max))
+           (while (comment-only-p (line-beginning-position) (line-end-position))
+             (forward-line -1))
+           ;; Include the last line as well
+           (forward-line)
            (point))))
     (buffer-substring (point-min) comments-start)))
+
 
 (defun org-babel-restclient-return-pure-payload-result-p (params)
   "Return `t' if the `:results' key in PARAMS contains `value' or `table'."
