@@ -63,7 +63,7 @@ This function is called by `org-babel-execute-src-block'"
           (let ((key (car p))
                 (value (cdr p)))
             (when (eql key :var)
-              (insert (format ":%s = %s\n" (car value) (cdr value))))))
+              (insert (format ":%s = <<\n%s\n#\n" (car value) (cdr value))))))
         (insert body)
 	(goto-char (point-min))
 	(delete-trailing-whitespace)
