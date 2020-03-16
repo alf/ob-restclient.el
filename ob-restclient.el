@@ -68,7 +68,8 @@ This function is called by `org-babel-execute-src-block'"
 	(goto-char (point-min))
 	(delete-trailing-whitespace)
 	(goto-char (point-min))
-        (restclient-http-parse-current-and-do 'restclient-http-do nil t))
+      (restclient-http-parse-current-and-do
+       'restclient-http-do (org-babel-restclient-raw-payload-p params) t))
 
       (while restclient-within-call
         (sleep-for 0.05))
@@ -107,6 +108,12 @@ This function is called by `org-babel-execute-src-block'"
   (let ((result-type (cdr (assoc :results params))))
     (when result-type
       (string-match "value\\|table" result-type))))
+
+(defun org-babel-restclient-raw-payload-p (params)
+  "Return t if the `:results' key in PARAMS contain `file'."
+  (let ((result-type (cdr (assoc :results params))))
+    (when result-type
+      (string-match "file" result-type))))
 
 (provide 'ob-restclient)
 ;;; ob-restclient.el ends here
