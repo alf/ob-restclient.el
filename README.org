@@ -1,4 +1,5 @@
 * ob-restclient.el
+[[https://melpa.org/#/ob-restclient][file:https://melpa.org/packages/ob-restclient-badge.svg]]
 
   An extension to restclient.el for emacs that provides org-babel support.
 
