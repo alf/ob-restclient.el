@@ -78,7 +78,7 @@ This function is called by `org-babel-execute-src-block'"
         (sleep-for 0.05))
 
       (goto-char (point-min))
-      (when (search-forward (buffer-name) nil t)
+      (when (equal (buffer-name) (buffer-string))
         (error "Restclient encountered an error"))
 
       (when (or (org-babel-restclient--return-pure-payload-result-p params)
