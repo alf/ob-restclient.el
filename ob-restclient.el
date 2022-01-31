@@ -38,10 +38,13 @@
 (require 'ob-comint)
 (require 'ob-eval)
 (require 'restclient)
-
+	
 (defvar org-babel-default-header-args:restclient
   `((:results . "raw"))
   "Default arguments for evaluating a restclient block.")
+
+(defvar org-babel-restclient--jq-path "jq" 
+	"The path to `jq', for postprocessing. Uses the PATH by default")
 
 ;;;###autoload
 (defun org-babel-execute:restclient (body params)
@@ -82,8 +85,19 @@ This function is called by `org-babel-execute-src-block'"
                 (assq :noheaders params))
         (org-babel-restclient--hide-headers))
 
+       (when-let* ((jq-header (assoc :jq params))
+                  (jq-path "jq"))
+        (shell-command-on-region
+         (point-min)
+         (point-max)
+         (format "%s %s" org-babel-restclient--jq-path
+		         (shell-quote-argument (cdr jq-header)))
+         (current-buffer)
+         t))
+	 
       (when (not (org-babel-restclient--return-pure-payload-result-p params))
         (org-babel-restclient--wrap-result))
+	 
       (buffer-string))))
 
 (defun org-babel-restclient--wrap-result ()
