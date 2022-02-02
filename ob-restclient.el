@@ -38,13 +38,13 @@
 (require 'ob-comint)
 (require 'ob-eval)
 (require 'restclient)
-	
+
 (defvar org-babel-default-header-args:restclient
   `((:results . "raw"))
   "Default arguments for evaluating a restclient block.")
 
-(defvar org-babel-restclient--jq-path "jq" 
-	"The path to `jq', for postprocessing. Uses the PATH by default")
+(defcustom org-babel-restclient--jq-path "jq"
+  "The path to `jq', for post-processing. Uses the PATH by default")
 
 ;;;###autoload
 (defun org-babel-execute:restclient (body params)
@@ -68,9 +68,9 @@ This function is called by `org-babel-execute-src-block'"
             (when (eql key :var)
               (insert (format ":%s = <<\n%s\n#\n" (car value) (cdr value))))))
         (insert body)
-	(goto-char (point-min))
-	(delete-trailing-whitespace)
-	(goto-char (point-min))
+        (goto-char (point-min))
+        (delete-trailing-whitespace)
+        (goto-char (point-min))
         (restclient-http-parse-current-and-do
          'restclient-http-do (org-babel-restclient--raw-payload-p params) t))
 
@@ -82,7 +82,8 @@ This function is called by `org-babel-execute-src-block'"
         (error "Restclient encountered an error"))
 
       (when (or (org-babel-restclient--return-pure-payload-result-p params)
-                (assq :noheaders params))
+                (assq :noheaders params)
+                (assq :jq params))
         (org-babel-restclient--hide-headers))
 
        (when-let* ((jq-header (assoc :jq params))
@@ -91,13 +92,19 @@ This function is called by `org-babel-execute-src-block'"
          (point-min)
          (point-max)
          (format "%s %s" org-babel-restclient--jq-path
-		         (shell-quote-argument (cdr jq-header)))
+                         (shell-quote-argument (cdr jq-header)))
          (current-buffer)
          t))
-	 
+
+       ;; widen if jq but not pure payload
+      (when (and (assq :jq params)
+                 (not (assq :noheaders params))
+                 (not (org-babel-restclient--return-pure-payload-result-p params)))
+        (widen))
+
       (when (not (org-babel-restclient--return-pure-payload-result-p params))
         (org-babel-restclient--wrap-result))
-	 
+
       (buffer-string))))
 
 (defun org-babel-restclient--wrap-result ()
