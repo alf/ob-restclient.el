@@ -1,10 +1,11 @@
 * ob-restclient.el
 [[https://melpa.org/#/ob-restclient][file:https://melpa.org/packages/ob-restclient-badge.svg]]
 
-  An extension to restclient.el for emacs that provides org-babel support.
+  An extension to restclient.el for emacs that provides org-babel
+  support.
 
-  To get started, install =ob-restclient.el= and add =(restclient
-  . t)= to =org-babel-load-languages=:
+  To get started, install =ob-restclient.el= and add =(restclient . t)= to
+  =org-babel-load-languages=:
 
   #+BEGIN_SRC emacs-lisp
   (org-babel-do-load-languages
@@ -14,6 +15,11 @@
 
   You can then execute the query by pressing =C-c C-c= on the
   source-block header.
+
+  header arguments for =:results raw|value|pure|table= will make a clean
+  result containing solely the response, and =:jq PATTERN= will
+  post-process the response by passing the value to =jq=, provided the binary
+  exists at a location specified by =org-babel-restclient--jq-path=
 
     #+BEGIN_SRC org
       ,#+BEGIN_SRC restclient
