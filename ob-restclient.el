@@ -82,7 +82,8 @@ This function is called by `org-babel-execute-src-block'"
         (error "Restclient encountered an error"))
 
       (when (or (org-babel-restclient--return-pure-payload-result-p params)
-                (assq :noheaders params))
+                (assq :noheaders params)
+                (assq :jq params))
         (org-babel-restclient--hide-headers))
 
        (when-let* ((jq-header (assoc :jq params))
@@ -94,7 +95,13 @@ This function is called by `org-babel-execute-src-block'"
 		         (shell-quote-argument (cdr jq-header)))
          (current-buffer)
          t))
-	 
+
+       ;; widen if jq but not pure payload
+      (when (and (assq :jq params)
+                 (not (assq :noheaders params))
+                 (not (org-babel-restclient--return-pure-payload-result-p params)))
+        (widen))
+
       (when (not (org-babel-restclient--return-pure-payload-result-p params))
         (org-babel-restclient--wrap-result))
 	 
