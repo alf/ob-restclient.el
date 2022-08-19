@@ -103,6 +103,16 @@ This function is called by `org-babel-execute-src-block'"
 
       (buffer-string))))
 
+;;;###autoload
+(defun org-babel-variable-assignments:restclient (params)
+  "Return a list of restclient statements assigning the block's variables specified in PARAMS."
+  (mapcar
+   (lambda (pair)
+     (let ((name (car pair))
+           (value (cdr pair)))
+       (format ":%s = %s" name value)))
+   (org-babel--get-vars params)))
+
 (defun org-babel-restclient--wrap-result ()
   "Wrap the contents of the buffer in an `org-mode' src block."
   (let ((mode-name (substring (symbol-name major-mode) 0 -5)))
