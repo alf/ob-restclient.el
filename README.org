@@ -37,6 +37,19 @@
       ,#+END_SRC
     #+END_SRC
 
+  You can pass variables into the block using :var header arguments. For example:
+
+    #+BEGIN_SRC org
+      ,#+name: example_host
+      ,#+BEGIN_SRC elisp
+        "example.com"
+      ,#+END_SRC
+
+      ,#+BEGIN_SRC restclient :var host=example_host :var foo="example" :var bar=42
+        GET http://:host?foo=:foo&bar=:bar
+      ,#+END_SRC
+    #+END_SRC
+
   See [[https://github.com/pashky/restclient.el][restclient.el]] for documentation and examples of usage.
 
 * Author
