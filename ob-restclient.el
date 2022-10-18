@@ -82,13 +82,15 @@ This function is called by `org-babel-execute-src-block'"
       (when (equal (buffer-name) (buffer-string))
         (error "Restclient encountered an error"))
 
-       (when-let* ((jq-header (assoc :jq params))
-                  (jq-path "jq"))
+      (when-let* ((jq-header (assoc :jq params))
+                  (jq-path "jq")
+		  (jq-args (or (cdr (assoc :jq-args params)) "")))
         (shell-command-on-region
          (point-min)
          (point-max)
-         (format "%s %s" org-babel-restclient--jq-path
-                         (shell-quote-argument (cdr jq-header)))
+         (format "%s %s--args %s" org-babel-restclient--jq-path
+		 (if (assq :jq-args params) (format "%s " jq-args) "")
+                 (shell-quote-argument (cdr jq-header)))
          (current-buffer)
          t))
 
