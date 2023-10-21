@@ -97,21 +97,27 @@ This function is called by `org-babel-execute-src-block'"
          (current-buffer)
          t))
 
+      ;; widen if jq but not pure payload
+      (when (and (assq :jq params)
+                 (not (assq :noheaders params))
+                 (not (org-babel-restclient--return-pure-payload-result-p params)))
+        (widen))
+
       (if (member "table" (cdr (assoc :result-params params)))
-	  (let* ((pmax (point-max))
-		 (separator '(4))
-		 (result
-		  (condition-case err
+          (let* ((pmax (point-max))
+	         (separator '(4))
+	         (result
+	          (condition-case err
 		      (let ((pmax (point-max)))
-			;; If the buffer is empty, don't bother trying to
-			;; convert the table.
-			(when (> pmax 1)
-			  (org-table-convert-region (point-min) pmax separator)
-			  (delq nil
-				(mapcar (lambda (row)
-					  (and (not (eq row 'hline))
+		        ;; If the buffer is empty, don't bother trying to
+		        ;; convert the table.
+		        (when (> pmax 1)
+		          (org-table-convert-region (point-min) pmax separator)
+		          (delq nil
+			        (mapcar (lambda (row)
+				          (and (not (eq row 'hline))
 					       (mapcar #'org-babel-string-read row)))
-					(org-table-to-lisp)))))
+				        (org-table-to-lisp)))))
 		    (error
 		     (display-warning 'org-babel
 				      (format "Error reading results: %S" err)
@@ -122,7 +128,9 @@ This function is called by `org-babel-execute-src-block'"
 	      (`((,_ ,_ . ,_)) result)
 	      (`(,scalar) scalar)
 	      (_ result)))
-	(buffer-string)))))
+        (when (not (org-babel-restclient--return-pure-payload-result-p params))
+          (org-babel-restclient--wrap-result))
+        (buffer-string)))))
 
 ;;;###autoload
 (defun org-babel-variable-assignments:restclient (params)
