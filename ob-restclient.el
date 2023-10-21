@@ -5,7 +5,7 @@
 ;; Author: Alf Lervåg
 ;; Keywords: literate programming, reproducible research
 ;; Homepage: https://github.com/alf/ob-restclient.el
-;; Version: 0.02
+;; Version: 0.03
 ;; Package-Requires: ((restclient "0"))
 
 ;;; License:
@@ -44,7 +44,9 @@
   "Default arguments for evaluating a restclient block.")
 
 (defcustom org-babel-restclient--jq-path "jq"
-  "The path to `jq', for post-processing. Uses the PATH by default")
+  "The path to `jq', for post-processing. Uses the PATH by default"
+  :type '(string)
+  :group 'org-babel)
 
 ;;;###autoload
 (defun org-babel-execute:restclient (body params)
@@ -63,12 +65,10 @@ This function is called by `org-babel-execute-src-block'"
 
       (insert (buffer-name))
       (with-temp-buffer
-        (dolist (p params)
-          (let ((key (car p))
-                (value (cdr p)))
-            (when (eql key :var)
-              (insert (format ":%s = <<\n%s\n#\n" (car value) (cdr value))))))
-        (insert body)
+	(insert
+	 (org-babel-expand-body:generic
+	  body params
+	  (org-babel-variable-assignments:restclient params)))
         (goto-char (point-min))
         (delete-trailing-whitespace)
         (goto-char (point-min))
@@ -97,20 +97,36 @@ This function is called by `org-babel-execute-src-block'"
          (current-buffer)
          t))
 
-       ;; widen if jq but not pure payload
-      (when (and (assq :jq params)
-                 (not (assq :noheaders params))
-                 (not (org-babel-restclient--return-pure-payload-result-p params)))
-        (widen))
-
-      (when (not (org-babel-restclient--return-pure-payload-result-p params))
-        (org-babel-restclient--wrap-result))
-
-      (buffer-string))))
+      (if (member "table" (cdr (assoc :result-params params)))
+	  (let* ((pmax (point-max))
+		 (separator '(4))
+		 (result
+		  (condition-case err
+		      (let ((pmax (point-max)))
+			;; If the buffer is empty, don't bother trying to
+			;; convert the table.
+			(when (> pmax 1)
+			  (org-table-convert-region (point-min) pmax separator)
+			  (delq nil
+				(mapcar (lambda (row)
+					  (and (not (eq row 'hline))
+					       (mapcar #'org-babel-string-read row)))
+					(org-table-to-lisp)))))
+		    (error
+		     (display-warning 'org-babel
+				      (format "Error reading results: %S" err)
+				      :error)
+		     nil))))
+	    (pcase result
+	      (`((,scalar)) scalar)
+	      (`((,_ ,_ . ,_)) result)
+	      (`(,scalar) scalar)
+	      (_ result)))
+	(buffer-string)))))
 
 ;;;###autoload
 (defun org-babel-variable-assignments:restclient (params)
-  "Return a list of restclient statements assigning the block's variables specified in PARAMS."
+  "Return a list of statements assigning variables specified in PARAMS."
   (mapcar
    (lambda (pair)
      (let ((name (car pair))
@@ -137,6 +153,9 @@ This function is called by `org-babel-execute-src-block'"
     (when result-type
       (string-match "value\\|table" result-type))))
 
+(defun org-babel-prep-session:restclient (_session _params)
+  "Return an error because restclient does not support sessions."
+  (error "Restclient does not support sessions"))
 
 (defun org-babel-restclient--raw-payload-p (params)
   "Return t if the `:results' key in PARAMS contain `file'."
