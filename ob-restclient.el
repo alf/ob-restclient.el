@@ -72,8 +72,11 @@ This function is called by `org-babel-execute-src-block'"
         (goto-char (point-min))
         (delete-trailing-whitespace)
         (goto-char (point-min))
-        (restclient-http-parse-current-and-do
-         'restclient-http-do (org-babel-restclient--raw-payload-p params) t t))
+        (if (fboundp #'restclient-http-send-current-suppress-response-buffer)
+            (restclient-http-parse-current-and-do
+             'restclient-http-do (org-babel-restclient--raw-payload-p params) t t)
+          (restclient-http-parse-current-and-do
+           'restclient-http-do (org-babel-restclient--raw-payload-p params) t)))
 
       (while restclient-within-call
         (sleep-for 0.05))
