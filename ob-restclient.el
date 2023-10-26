@@ -147,6 +147,8 @@ This function is called by `org-babel-execute-src-block'"
   (let ((mode-name (substring (symbol-name major-mode) 0 -5)))
     (insert (format "#+BEGIN_SRC %s\n" mode-name))
     (goto-char (point-max))
+    (unless (and (bolp) (eolp))
+      (insert "\n"))
     (insert "#+END_SRC\n")))
 
 (defun org-babel-restclient--should-hide-headers-p (params)
