@@ -58,6 +58,8 @@ This function is called by `org-babel-execute-src-block'"
           (restclient-same-buffer-response t)
           (restclient-response-body-only (org-babel-restclient--should-hide-headers-p params))
           (restclient-same-buffer-response-name (buffer-name))
+	  (raw-only (org-babel-restclient--raw-payload-p params))
+	  (suppress-response-buffer (fboundp #'restclient-http-send-current-suppress-response-buffer))
           (display-buffer-alist
            (cons
             '("\\*temp\\*" display-buffer-no-window (allow-no-window . t))
@@ -72,11 +74,7 @@ This function is called by `org-babel-execute-src-block'"
         (goto-char (point-min))
         (delete-trailing-whitespace)
         (goto-char (point-min))
-        (if (fboundp #'restclient-http-send-current-suppress-response-buffer)
-            (restclient-http-parse-current-and-do
-             'restclient-http-do (org-babel-restclient--raw-payload-p params) t t)
-          (restclient-http-parse-current-and-do
-           'restclient-http-do (org-babel-restclient--raw-payload-p params) t)))
+        (restclient-http-parse-current-and-do 'restclient-http-do raw-only t suppress-response-buffer))
 
       (while restclient-within-call
         (sleep-for 0.05))
@@ -174,7 +172,8 @@ This function is called by `org-babel-execute-src-block'"
   "Return t if the `:results' key in PARAMS contain `file'."
   (let ((result-type (cdr (assoc :results params))))
     (when result-type
-      (string-match "file" result-type))))
+      (and (not (org-babel-restclient--should-hide-headers-p params))
+           (string-match "file" result-type)))))
 
 (provide 'ob-restclient)
 ;;; ob-restclient.el ends here
