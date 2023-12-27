@@ -138,8 +138,11 @@ This function is called by `org-babel-execute-src-block'"
   (mapcar
    (lambda (pair)
      (let ((name (car pair))
-           (value (cdr pair)))
-       (format ":%s = %s" name value)))
+           (value (cdr pair))
+	   (format-string ":%s = %s\n"))
+       (when (string-match-p "\n" value)
+	 (setq format-string ":%s = <<\n%s\n#\n"))
+       (format format-string name value)))
    (org-babel--get-vars params)))
 
 (defun org-babel-restclient--wrap-result ()
