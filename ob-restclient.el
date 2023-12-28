@@ -1,4 +1,4 @@
-;;; ob-restclient.el --- org-babel functions for restclient-mode
+;;; ob-restclient.el --- org-babel functions for restclient-mode -*- lexical-binding: t -*-
 
 ;; Copyright (C) Alf Lervåg
 
@@ -37,6 +37,7 @@
 (require 'ob-ref)
 (require 'ob-comint)
 (require 'ob-eval)
+(require 'org-table)
 (require 'restclient)
 
 (defvar org-babel-default-header-args:restclient
@@ -92,7 +93,7 @@ This function is called by `org-babel-execute-src-block'"
          (format "%s %s--args %s" org-babel-restclient--jq-path
 		 (if (assq :jq-args params) (format "%s " jq-args) "")
                  (shell-quote-argument (cdr jq-header)))
-         (current-buffer)
+         results-buffer
          t))
 
       ;; widen if jq but not pure payload
@@ -102,8 +103,7 @@ This function is called by `org-babel-execute-src-block'"
         (widen))
 
       (if (member "table" (cdr (assoc :result-params params)))
-          (let* ((pmax (point-max))
-	         (separator '(4))
+          (let* ((separator '(4))
 	         (result
 	          (condition-case err
 		      (let ((pmax (point-max)))
