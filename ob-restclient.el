@@ -118,7 +118,7 @@
   (message "executing Restclient source code block")
   (let* ((response-buffer-name (generate-new-buffer-name "*ob-restclient-response*"))
          (restclient-same-buffer-response t)
-         (restclient-response-body-only nil)  ; Changed to nil to capture full response
+         (restclient-response-body-only nil)
          (restclient-same-buffer-response-name response-buffer-name)
          (raw-only t)
          (suppress-response-buffer (fboundp #'restclient-http-send-current-suppress-response-buffer))
@@ -146,6 +146,26 @@
                        (goto-char (point-min))
                        (search-forward "\n\n" nil 't)
                        (string-trim (buffer-substring (point) (point-max)))))
+               ;; Format the body if formatters are available
+               (formatted-body
+                (cond
+                 ((string-match-p "xml" (downcase content-type))
+                  (if (fboundp 'xml-format-region)
+                      (with-temp-buffer
+                        (insert body)
+                        (goto-char (point-min))
+                        (xml-format-region (point-min) (point-max))
+                        (buffer-string))
+                    body))
+                 ((string-match-p "json" (downcase content-type))
+                  (if (fboundp 'json-reformat-region)
+                      (with-temp-buffer
+                        (insert body)
+                        (goto-char (point-min))
+                        (json-reformat-region (point-min) (point-max))
+                        (buffer-string))
+                    body))
+                 (t body)))
                (result-type (org-babel-restclient--result-type params))
                (result-lang
                 (cond
@@ -154,17 +174,17 @@
                  (t "text")))
                (output
                 (pcase result-type
-                  (`raw (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang body
-                                (if (string-suffix-p "\n" body) "" "\n")))
-                  (`org (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang body
-                                (if (string-suffix-p "\n" body) "" "\n")))
-                  (`json (format "#+BEGIN_SRC json\n%s%s#+END_SRC\n" body
-                                 (if (string-suffix-p "\n" body) "" "\n")))
-                  (`xml (format "#+BEGIN_SRC xml\n%s%s#+END_SRC\n" body
-                                (if (string-suffix-p "\n" body) "" "\n")))
-                  (`nxml (format "#+BEGIN_SRC nxml\n%s%s#+END_SRC\n" body
-                                 (if (string-suffix-p "\n" body) "" "\n")))
-                  (_ body))))
+                  (`raw (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang formatted-body
+                                (if (string-suffix-p "\n" formatted-body) "" "\n")))
+                  (`org (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang formatted-body
+                                (if (string-suffix-p "\n" formatted-body) "" "\n")))
+                  (`json (format "#+BEGIN_SRC json\n%s%s#+END_SRC\n" formatted-body
+                                 (if (string-suffix-p "\n" formatted-body) "" "\n")))
+                  (`xml (format "#+BEGIN_SRC xml\n%s%s#+END_SRC\n" formatted-body
+                                (if (string-suffix-p "\n" formatted-body) "" "\n")))
+                  (`nxml (format "#+BEGIN_SRC nxml\n%s%s#+END_SRC\n" formatted-body
+                                 (if (string-suffix-p "\n" formatted-body) "" "\n")))
+                  (_ formatted-body))))
           (kill-buffer results-buffer)
           output)))))
 
