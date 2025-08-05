@@ -54,7 +54,7 @@
   "Execute a block of Restclient code with org-babel.
 This function is called by `org-babel-execute-src-block'"
   (message "executing Restclient source code block")
-  ;; We use a unique buffer name for the response to avoid collision.
+  ;; Use a unique buffer name for the response to avoid collision.
   (let* ((response-buffer-name (generate-new-buffer-name "*ob-restclient-response*"))
          (restclient-same-buffer-response t)
          (restclient-response-body-only (org-babel-restclient--should-hide-headers-p params))
@@ -106,32 +106,35 @@ This function is called by `org-babel-execute-src-block'"
                    (not (assq :noheaders params))
                    (not (org-babel-restclient--return-pure-payload-result-p params)))
           (widen))
-        ;; Table results
-        (if (member "table" (cdr (assoc :result-params params)))
-            (let* ((separator '(4))
-                   (result
-                    (condition-case err
-                        (let ((pmax (point-max)))
-                          (when (> pmax 1)
-                            (org-table-convert-region (point-min) pmax separator)
-                            (delq nil
-                                  (mapcar (lambda (row)
-                                            (and (not (eq row 'hline))
-                                                 (mapcar #'org-babel-string-read row)))
-                                          (org-table-to-lisp)))))
-                      (error
-                       (display-warning 'org-babel
-                                        (format "Error reading results: %S" err)
-                                        :error)
-                       nil))))
-              (pcase result
-                (`((,scalar)) scalar)
-                (`((,_ ,_ . ,_)) result)
-                (`(,scalar) scalar)
-                (_ result)))
-          (when (not (org-babel-restclient--return-pure-payload-result-p params))
-            (org-babel-restclient--wrap-result))
-          (buffer-string))))))
+        ;; Extract the result, then kill the buffer
+        (let ((final-result
+               (if (member "table" (cdr (assoc :result-params params)))
+                   (let* ((separator '(4))
+                          (result
+                           (condition-case err
+                               (let ((pmax (point-max)))
+                                 (when (> pmax 1)
+                                   (org-table-convert-region (point-min) pmax separator)
+                                   (delq nil
+                                         (mapcar (lambda (row)
+                                                   (and (not (eq row 'hline))
+                                                        (mapcar #'org-babel-string-read row)))
+                                                 (org-table-to-lisp)))))
+                             (error
+                              (display-warning 'org-babel
+                                               (format "Error reading results: %S" err)
+                                               :error)
+                              nil))))
+                     (pcase result
+                       (`((,scalar)) scalar)
+                       (`((,_ ,_ . ,_)) result)
+                       (`(,scalar) scalar)
+                       (_ result)))
+                 (when (not (org-babel-restclient--return-pure-payload-result-p params))
+                   (org-babel-restclient--wrap-result))
+                 (buffer-string))))
+          (kill-buffer results-buffer)
+          final-result)))))
 
 ;;;###autoload
 (defun org-babel-variable-assignments:restclient (params)
