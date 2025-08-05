@@ -49,92 +49,77 @@
   :type '(string)
   :group 'org-babel)
 
+(defun org-babel-restclient--extract-json-body ()
+  "Extract the first JSON object or array in buffer, ignoring HTTP headers."
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward "^[[:space:]]*\\({\\|\\[\\)" nil t)
+        (let ((start (match-beginning 0)))
+          (goto-char start)
+          (let ((json-end
+                 (condition-case nil
+                     (progn
+                       (forward-sexp)
+                       (point))
+                   (error (point-max)))))
+            (string-trim (buffer-substring-no-properties start json-end))))
+      "")))  ;; No JSON found
+
+(defun org-babel-restclient--result-type (params)
+  "Detect :results type from PARAMS."
+  (let ((types (split-string (or (cdr (assoc :results params)) "output") " ")))
+    (cond
+     ((member "raw" types)   'raw)
+     ((member "org" types)   'org)
+     ((member "value" types) 'org)
+     ((member "json" types)  'json)
+     (t                      'output))))
+
 ;;;###autoload
 (defun org-babel-execute:restclient (body params)
-  "Execute a block of Restclient code with org-babel.
-This function is called by `org-babel-execute-src-block'"
+  "Execute Restclient block for Org Babel, showing only JSON in output."
   (message "executing Restclient source code block")
-  ;; Use a unique buffer name for the response to avoid collision.
   (let* ((response-buffer-name (generate-new-buffer-name "*ob-restclient-response*"))
          (restclient-same-buffer-response t)
-         (restclient-response-body-only (org-babel-restclient--should-hide-headers-p params))
+         (restclient-response-body-only t)
          (restclient-same-buffer-response-name response-buffer-name)
-         (raw-only (org-babel-restclient--raw-payload-p params))
+         (raw-only t)
          (suppress-response-buffer (fboundp #'restclient-http-send-current-suppress-response-buffer))
          (display-buffer-alist
-          (cons
-           '("\\*temp\\*" display-buffer-no-window (allow-no-window . t))
-           display-buffer-alist)))
-    ;; Prepare and send the request
+          (cons '("\\*temp\\*" display-buffer-no-window (allow-no-window . t))
+                display-buffer-alist)))
     (with-temp-buffer
-      (insert
-       (org-babel-expand-body:generic
-        body params
-        (org-babel-variable-assignments:restclient params)))
+      (insert (org-babel-expand-body:generic body params
+                                             (org-babel-variable-assignments:restclient params)))
       (goto-char (point-min))
       (delete-trailing-whitespace)
       (goto-char (point-min))
-      ;; Execute the request (response goes in response-buffer-name)
       (restclient-http-parse-current-and-do 'restclient-http-do raw-only t suppress-response-buffer))
-    ;; Wait for the response
-    (while restclient-within-call
-      (sleep-for 0.05))
-    ;; Grab response buffer
+    (while restclient-within-call (sleep-for 0.05))
     (let ((results-buffer (get-buffer response-buffer-name)))
       (unless (and results-buffer (buffer-live-p results-buffer))
         (error "Restclient did not produce a live response buffer"))
       (with-current-buffer results-buffer
-        (when buffer-read-only
-          (setq buffer-read-only nil))
         (goto-char (point-min))
-        (when (zerop (buffer-size))
-          (error "Restclient encountered an error"))
-        ;; jq post-process if needed
-        (when-let* ((jq-header (assoc :jq params))
-                    (jq-path "jq")
-                    (jq-args (or (cdr (assoc :jq-args params)) "")))
-          (shell-command-on-region
-           (point-min)
-           (point-max)
-           (format "%s %s--args %s" org-babel-restclient--jq-path
-                   (if (assq :jq-args params) (format "%s " jq-args) "")
-                   (shell-quote-argument (cdr jq-header)))
-           results-buffer
-           t))
-        ;; widen if needed
-        (when (and (assq :jq params)
-                   (not (assq :noheaders params))
-                   (not (org-babel-restclient--return-pure-payload-result-p params)))
-          (widen))
-        ;; Extract the result, then kill the buffer
-        (let ((final-result
-               (if (member "table" (cdr (assoc :result-params params)))
-                   (let* ((separator '(4))
-                          (result
-                           (condition-case err
-                               (let ((pmax (point-max)))
-                                 (when (> pmax 1)
-                                   (org-table-convert-region (point-min) pmax separator)
-                                   (delq nil
-                                         (mapcar (lambda (row)
-                                                   (and (not (eq row 'hline))
-                                                        (mapcar #'org-babel-string-read row)))
-                                                 (org-table-to-lisp)))))
-                             (error
-                              (display-warning 'org-babel
-                                               (format "Error reading results: %S" err)
-                                               :error)
-                              nil))))
-                     (pcase result
-                       (`((,scalar)) scalar)
-                       (`((,_ ,_ . ,_)) result)
-                       (`(,scalar) scalar)
-                       (_ result)))
-                 (when (not (org-babel-restclient--return-pure-payload-result-p params))
-                   (org-babel-restclient--wrap-result))
-                 (buffer-string))))
+        (when buffer-read-only (setq buffer-read-only nil))
+        (when (zerop (buffer-size)) (error "Restclient encountered an error"))
+        (let* ((json-body (org-babel-restclient--extract-json-body))
+               (result-type (org-babel-restclient--result-type params))
+               (output
+                (pcase result-type
+                  (`raw (concat "#+BEGIN_SRC json\n"
+                                json-body
+                                (unless (string-suffix-p "\n" json-body) "\n")
+                                "#+END_SRC\n"))
+                  (`org (concat "#+BEGIN_SRC json\n"
+                                json-body
+                                (unless (string-suffix-p "\n" json-body) "\n")
+                                "#+END_SRC\n"))
+                  (`json (concat json-body "\n"))
+                  (_     (concat json-body "\n")))))
           (kill-buffer results-buffer)
-          final-result)))))
+          output)))))
+
 
 ;;;###autoload
 (defun org-babel-variable-assignments:restclient (params)
