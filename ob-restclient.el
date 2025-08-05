@@ -33,6 +33,8 @@
 ;; restclient.el
 
 ;;; Code:
+
+;;; Code:
 (require 'ob)
 (require 'ob-ref)
 (require 'ob-comint)
@@ -41,13 +43,23 @@
 (require 'restclient)
 
 (defvar org-babel-default-header-args:restclient
-  `((:results . "raw"))
+  '((:results . "raw"))
   "Default arguments for evaluating a restclient block.")
 
 (defcustom org-babel-restclient--jq-path "jq"
-  "The path to `jq', for post-processing. Uses the PATH by default"
+  "The path to `jq', for post-processing. Uses the PATH by default."
   :type '(string)
   :group 'org-babel)
+
+(defun org-babel-restclient--extract-body (content-type)
+  "Extract response body based on CONTENT-TYPE."
+  (pcase (and content-type (downcase content-type))
+    ((or "application/json" "application/ld+json")
+     (org-babel-restclient--extract-json-body))
+    ((or "application/xml" "text/xml" "application/atom+xml" "text/html" "application/rss+xml")
+     (org-babel-restclient--extract-xml-body))
+    (_
+     (org-babel-restclient--extract-json-body)))) ; Fallback to JSON
 
 (defun org-babel-restclient--extract-json-body ()
   "Extract the first JSON object or array in buffer, ignoring HTTP headers."
@@ -63,7 +75,31 @@
                        (point))
                    (error (point-max)))))
             (string-trim (buffer-substring-no-properties start json-end))))
-      "")))  ;; No JSON found
+      "")))  ; No JSON found
+
+(defun org-babel-restclient--extract-xml-body ()
+  "Extract the first XML element in buffer, ignoring HTTP headers."
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward "<[^>]+>" nil t)
+        (let ((start (match-beginning 0)))
+          (goto-char start)
+          (let ((xml-end
+                 (condition-case nil
+                     (progn
+                       (ignore-errors (forward-sexp))
+                       (point))
+                   (error (point-max)))))
+            (string-trim (buffer-substring-no-properties start xml-end))))
+      "")))  ; No XML found
+
+(defun org-babel-restclient--get-content-type ()
+  "Extract Content-Type header from response."
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward "^Content-Type:[ \t]*\\([^;\n]+\\)" nil t)
+        (match-string 1)
+      "application/json"))) ; Default to JSON
 
 (defun org-babel-restclient--result-type (params)
   "Detect :results type from PARAMS."
@@ -73,11 +109,13 @@
      ((member "org" types)   'org)
      ((member "value" types) 'org)
      ((member "json" types)  'json)
+     ((member "xml" types)   'xml)
+     ((member "nxml" types)  'nxml)
      (t                      'output))))
 
 ;;;###autoload
 (defun org-babel-execute:restclient (body params)
-  "Execute Restclient block for Org Babel, showing only JSON in output."
+  "Execute Restclient block for Org Babel, supporting JSON, XML and nXML output."
   (message "executing Restclient source code block")
   (let* ((response-buffer-name (generate-new-buffer-name "*ob-restclient-response*"))
          (restclient-same-buffer-response t)
@@ -103,23 +141,29 @@
         (goto-char (point-min))
         (when buffer-read-only (setq buffer-read-only nil))
         (when (zerop (buffer-size)) (error "Restclient encountered an error"))
-        (let* ((json-body (org-babel-restclient--extract-json-body))
+        (let* ((content-type (org-babel-restclient--get-content-type))
+               (body (org-babel-restclient--extract-body content-type))
                (result-type (org-babel-restclient--result-type params))
+               (result-lang
+                (cond
+                 ((string-match-p "xml" (downcase content-type)) "xml")
+                 ((string-match-p "json" (downcase content-type)) "json")
+                 (t "text")))
                (output
                 (pcase result-type
-                  (`raw (concat "#+BEGIN_SRC json\n"
-                                json-body
-                                (unless (string-suffix-p "\n" json-body) "\n")
-                                "#+END_SRC\n"))
-                  (`org (concat "#+BEGIN_SRC json\n"
-                                json-body
-                                (unless (string-suffix-p "\n" json-body) "\n")
-                                "#+END_SRC\n"))
-                  (`json (concat json-body "\n"))
-                  (_     (concat json-body "\n")))))
+                  (`raw (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang body
+                                (if (string-suffix-p "\n" body) "" "\n")))
+                  (`org (format "#+BEGIN_SRC %s\n%s%s#+END_SRC\n" result-lang body
+                                (if (string-suffix-p "\n" body) "" "\n")))
+                  (`json (format "#+BEGIN_SRC json\n%s%s#+END_SRC\n" body
+                                 (if (string-suffix-p "\n" body) "" "\n")))
+                  (`xml (format "#+BEGIN_SRC xml\n%s%s#+END_SRC\n" body
+                                (if (string-suffix-p "\n" body) "" "\n")))
+                  (`nxml (format "#+BEGIN_SRC nxml\n%s%s#+END_SRC\n" body
+                                 (if (string-suffix-p "\n" body) "" "\n")))
+                  (_ body))))
           (kill-buffer results-buffer)
           output)))))
-
 
 ;;;###autoload
 (defun org-babel-variable-assignments:restclient (params)
