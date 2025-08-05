@@ -118,7 +118,7 @@ This function is called by `org-babel-execute-src-block'"
                                   (mapcar (lambda (row)
                                             (and (not (eq row 'hline))
                                                  (mapcar #'org-babel-string-read row)))
-                                        (org-table-to-lisp)))))
+                                          (org-table-to-lisp)))))
                       (error
                        (display-warning 'org-babel
                                         (format "Error reading results: %S" err)
@@ -140,9 +140,9 @@ This function is called by `org-babel-execute-src-block'"
    (lambda (pair)
      (let ((name (car pair))
            (value (cdr pair))
-	   (format-string ":%s = %s\n"))
+           (format-string ":%s = %s\n"))
        (when (string-match-p "\n" value)
-	 (setq format-string ":%s = <<\n%s\n#\n"))
+         (setq format-string ":%s = <<\n%s\n#\n"))
        (format format-string name value)))
    (org-babel--get-vars params)))
 
@@ -158,8 +158,8 @@ This function is called by `org-babel-execute-src-block'"
 (defun org-babel-restclient--should-hide-headers-p (params)
   "Return `t' if headers should be hidden."
   (or (org-babel-restclient--return-pure-payload-result-p params)
-                (assq :noheaders params)
-                (assq :jq params)))
+      (assq :noheaders params)
+      (assq :jq params)))
 
 (defun org-babel-restclient--return-pure-payload-result-p (params)
   "Return `t' if the `:results' key in PARAMS contains `value' or `table'."
