@@ -79,16 +79,17 @@
   "Extract the first XML element in buffer, ignoring HTTP headers."
   (save-excursion
     (goto-char (point-min))
-    (if (re-search-forward "<[^>]+>" nil t)
+    ;; Skip headers to get to actual content
+    (when (re-search-forward "^\\r?\\n" nil t)
+      (goto-char (match-beginning 0)))
+    ;; Look for any XML content (even minimal like <root/>)
+    (if (re-search-forward "[][^>]*" nil t)
         (let ((start (match-beginning 0)))
           (goto-char start)
-          (let ((xml-end
-                 (condition-case nil
-                     (progn
-                       (ignore-errors (forward-sexp))
-                       (point))
-                   (error (point-max)))))
-            (string-trim (buffer-substring-no-properties start xml-end))))
+          ;; Find the end of this XML construct
+          (re-search-forward "[^>]*[>]" nil t)
+          (let ((end (match-end 0)))
+            (string-trim (buffer-substring-no-properties start end))))
       "")))  ; No XML found
 
 (defun org-babel-restclient--get-content-type ()
@@ -117,7 +118,7 @@
   (message "executing Restclient source code block")
   (let* ((response-buffer-name (generate-new-buffer-name "*ob-restclient-response*"))
          (restclient-same-buffer-response t)
-         (restclient-response-body-only t)
+         (restclient-response-body-only nil)  ; Changed to nil to capture full response
          (restclient-same-buffer-response-name response-buffer-name)
          (raw-only t)
          (suppress-response-buffer (fboundp #'restclient-http-send-current-suppress-response-buffer))
@@ -140,7 +141,11 @@
         (when buffer-read-only (setq buffer-read-only nil))
         (when (zerop (buffer-size)) (error "Restclient encountered an error"))
         (let* ((content-type (org-babel-restclient--get-content-type))
-               (body (org-babel-restclient--extract-body content-type))
+               (body (progn
+                       ;; Move past headers to find actual content
+                       (goto-char (point-min))
+                       (search-forward "\n\n" nil 't)
+                       (string-trim (buffer-substring (point) (point-max)))))
                (result-type (org-babel-restclient--result-type params))
                (result-lang
                 (cond
