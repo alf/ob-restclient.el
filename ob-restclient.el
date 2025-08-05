@@ -33,8 +33,6 @@
 ;; restclient.el
 
 ;;; Code:
-
-;;; Code:
 (require 'ob)
 (require 'ob-ref)
 (require 'ob-comint)
